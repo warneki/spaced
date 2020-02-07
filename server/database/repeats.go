@@ -2,11 +2,9 @@ package database
 
 import (
     "context"
-    "encoding/json"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "log"
-    "net/http"
     "time"
 )
 
@@ -18,13 +16,6 @@ type Repeat struct {
     Days      int                 `bson:"days" json:"days"`
     SessionID *primitive.ObjectID `bson:"session_id" json:"session_id"`
     RepeatOn  time.Time           `bson:"repeat_on" json:"repeat_on"`
-}
-
-func GetAllRepeat(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Context-Type", "application/x-www-form-urlencoded")
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    payload := getAllRepeat()
-    json.NewEncoder(w).Encode(payload)
 }
 
 func getAllRepeat() []primitive.M {

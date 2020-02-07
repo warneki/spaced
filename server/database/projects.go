@@ -2,13 +2,11 @@ package database
 
 import (
     "context"
-    "encoding/json"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
     "log"
-    "net/http"
     "time"
 )
 
@@ -19,13 +17,6 @@ type Project struct {
     Tags          []string              `bson:"tags" json:"tags"`
     NotesLocation string                `bson:"notes_location" json:"notes_location"`
     StudySessions []*primitive.ObjectID `bson:"study_sessions" json:"study_sessions"`
-}
-
-func GetAllProject(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Context-Type", "application/x-www-form-urlencoded")
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    payload := getAllProject()
-    json.NewEncoder(w).Encode(payload)
 }
 
 func getAllProject() []primitive.M {

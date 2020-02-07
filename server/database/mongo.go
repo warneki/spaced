@@ -2,12 +2,14 @@ package database
 
 import (
     "context"
+    "encoding/json"
     "fmt"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
     "log"
+    "net/http"
 )
 
 var Projects, Sessions, Repeats *mongo.Collection
@@ -33,6 +35,25 @@ func init()  {
     Sessions = client.Database("test").Collection("sessions")
     Repeats = client.Database("test").Collection("repeats")
 
+}
+
+
+type dataForToday struct {
+    Sessions []primitive.M   `json:"sessions"`
+    Projects []primitive.M   `json:"projects"`
+    Repeats  []primitive.M   `json:"repeats"`
+}
+
+func GetDataForToday(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Context-Type", "application/x-www-form-urlencoded")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+
+    payload := dataForToday {}
+    payload.Sessions = getAllSession()
+    payload.Projects = getAllProject()
+    payload.Repeats = getAllRepeat()
+
+    _ = json.NewEncoder(w).Encode(payload)
 }
 
 func queryForResult(err error, cur *mongo.Cursor) []primitive.M {
