@@ -19,9 +19,10 @@ type Project struct {
     StudySessions []*primitive.ObjectID `bson:"study_sessions" json:"study_sessions"`
 }
 
-func getAllProject() []primitive.M {
+func getAllProject(c chan []primitive.M) {
     cur, err := Projects.Find(context.Background(), bson.D{{}})
-    return queryForResult(err, cur)
+    c <-  queryForResult(err, cur)
+    close(c)
 }
 
 func updateProjectWithSession(sessionId *primitive.ObjectID, projectName string) Project {

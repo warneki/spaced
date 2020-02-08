@@ -23,10 +23,10 @@ type SessionInsertResult struct {
     Project Project   `json:"project"`
     Repeats [7]Repeat `json:"repeats"`
 }
-
-func getAllSession() []primitive.M {
+func getAllSession(c chan []primitive.M) {
     cur, err := Sessions.Find(context.Background(), bson.D{{}})
-    return queryForResult(err, cur)
+    c <- queryForResult(err, cur)
+    close(c)
 }
 
 func ReturnOptions(w http.ResponseWriter, r *http.Request) {

@@ -18,9 +18,10 @@ type Repeat struct {
     RepeatOn  time.Time           `bson:"repeat_on" json:"repeat_on"`
 }
 
-func getAllRepeat() []primitive.M {
+func getAllRepeat(c chan []primitive.M) {
     cur, err := Repeats.Find(context.Background(), bson.D{{}})
-    return queryForResult(err, cur)
+    c <-  queryForResult(err, cur)
+    close(c)
 }
 
 func generateRepeatsForSession(sessionId *primitive.ObjectID, sessionCreated time.Time) [7]Repeat {

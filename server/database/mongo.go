@@ -44,18 +44,29 @@ type dataForToday struct {
     Repeats  []primitive.M   `json:"repeats"`
 }
 
+
 func GetDataForToday(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Context-Type", "application/x-www-form-urlencoded")
     w.Header().Set("Access-Control-Allow-Origin", "*")
 
+    sessions := make(chan []primitive.M, 1)
+    projects := make(chan []primitive.M, 1)
+    repeats := make(chan []primitive.M, 1)
+
+    go getAllSession(sessions)
+    go getAllProject(projects)
+    go getAllRepeat(repeats)
+
+
     payload := dataForToday {}
-    payload.Sessions = getAllSession()
-    payload.Projects = getAllProject()
-    payload.Repeats = getAllRepeat()
+
+    // TODO: bettwer way to merge results?
+    payload.Sessions = <- sessions
+    payload.Projects = <- projects
+    payload.Repeats = <- repeats
 
     _ = json.NewEncoder(w).Encode(payload)
 }
-
 func queryForResult(err error, cur *mongo.Cursor) []primitive.M {
     if err != nil {
         log.Fatal(err)
