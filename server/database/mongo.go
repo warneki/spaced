@@ -4,6 +4,7 @@ import (
     "context"
     "encoding/json"
     "fmt"
+    "github.com/warneki/spaced/server/config"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
@@ -15,7 +16,7 @@ import (
 var Projects, Sessions, Repeats, Users *mongo.Collection
 
 func init()  {
-    clientOptions := options.Client().ApplyURI(MONGO_URL())
+    clientOptions := options.Client().ApplyURI(config.MONGO_URL())
     client, err := mongo.Connect(context.Background(), clientOptions)
 
     if err != nil {

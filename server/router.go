@@ -14,6 +14,8 @@ func Router() *mux.Router {
 
     router := mux.NewRouter()
 
+    router.HandleFunc("/api/register", database.RegisterUser).Methods("POST", "OPTIONS")
+
     router.HandleFunc("/api/today", database.GetDataForToday).Methods("GET")
 
     router.HandleFunc("/sessions", database.ReturnOptions).Methods("OPTIONS")

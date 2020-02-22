@@ -4,6 +4,7 @@ import (
     "context"
     "encoding/json"
     "fmt"
+    "github.com/warneki/spaced/server/config"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "log"
@@ -30,13 +31,13 @@ func getAllSession(c chan []primitive.M) {
 }
 
 func ReturnOptions(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Origin", config.OriginUrl)
     w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
     w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
 func AddNewSession(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Origin", config.OriginUrl)
     w.Header().Set("Server", "A Go Web Server")
     w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
 
