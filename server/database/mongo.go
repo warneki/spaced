@@ -12,7 +12,7 @@ import (
     "net/http"
 )
 
-var Projects, Sessions, Repeats *mongo.Collection
+var Projects, Sessions, Repeats, Users *mongo.Collection
 
 func init()  {
     clientOptions := options.Client().ApplyURI(MONGO_URL())
@@ -34,6 +34,7 @@ func init()  {
     Projects = client.Database("test").Collection("projects")
     Sessions = client.Database("test").Collection("sessions")
     Repeats = client.Database("test").Collection("repeats")
+    Users = client.Database("test").Collection("users")
 
 }
 
@@ -67,6 +68,7 @@ func GetDataForToday(w http.ResponseWriter, r *http.Request) {
 
     _ = json.NewEncoder(w).Encode(payload)
 }
+
 func queryForResult(err error, cur *mongo.Cursor) []primitive.M {
     if err != nil {
         log.Fatal(err)
