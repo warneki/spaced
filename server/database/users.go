@@ -3,28 +3,35 @@ package database
 import (
     "context"
     "encoding/json"
-    "errors"
     "fmt"
+    "github.com/warneki/spaced/server/auth"
     "github.com/warneki/spaced/server/config"
     "go.mongodb.org/mongo-driver/bson/primitive"
+    "go.mongodb.org/mongo-driver/mongo"
     "golang.org/x/crypto/bcrypt"
     "log"
     "net/http"
+    "strings"
     "time"
 )
 
 
 type User struct {
-    ID          *primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+    ID          *primitive.ObjectID `bson:"_id,omitempty" json:"-"`
     Username    string              `bson:"username" json:"username"`
     DateCreated time.Time           `bson:"date_created" json:"date_created"`
     Hash        []byte              `bson:"hash" json:"-"`
-    Sessions    []string            `bson:"sessions" json:"sessions"`
+    Sessions    []string            `bson:"sessions" json:"-"`
 }
 
 type registeringUser struct {
     Username string `json:"username"`
     Password string `json:"password"`
+}
+
+type registeringResult struct {
+    User User `json:"user"`
+    Token string `json:"token"`
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +63,8 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
     userCreated := time.Now()
     user.DateCreated = userCreated
-    user.Username = userData.Username
+    // TODO: add checks
+    user.Username = strings.ToLower(userData.Username)
 
     hash, err := bcrypt.GenerateFromPassword([]byte(userData.Password), config.HashCost)
     if err != nil {
@@ -64,24 +72,32 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         return
     }
     user.Hash = hash
-
-    // TODO: generate signed session
-    user.Sessions = []string{"sample_session_id"}
+    user.Sessions = []string{"web"}
 
     result, err := insertNewUser(user)
     if err != nil {
+        if _, ok := err.(mongo.WriteException); ok {
+            http.Error(w, "This username is not available to register", 409)
+            return
+        }
         http.Error(w, "Could not register user, please try again", 500)
         return
     }
 
-    json.NewEncoder(w).Encode(result)
+    token := auth.GenerateJWT(user.Username, user.Sessions)
+    serializedToken := auth.SignAndSerializeJWT(token)
+
+    _ = json.NewEncoder(w).Encode(registeringResult{
+        User:  result,
+        Token: serializedToken,
+    })
 }
 
 func insertNewUser(user User) (User, error) {
     res, err := Users.InsertOne(context.Background(), user)
     if err != nil {
-        log.Fatal("Got error when inserting new user: ", err)
-        return User{}, errors.New("Failed to insert user")
+        log.Println("Got error when inserting new user: ", err)
+        return User{}, err
     }
 
     if oid, ok := res.InsertedID.(primitive.ObjectID); ok {

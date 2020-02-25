@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/DataDog/zstd v1.4.4 // indirect
+	github.com/SermoDigital/jose v0.9.1
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/klauspost/compress v1.10.1 // indirect
