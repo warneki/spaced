@@ -17,6 +17,8 @@ func Router() *mux.Router {
 	router.HandleFunc("/api/register", database.RegisterUser).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/verify", database.VerifyUserWithToken).Methods("POST")
 
+	router.HandleFunc("/api/logout", database.LogoutUserWithToken).Methods("PUT")
+
 	router.HandleFunc("/api/today", database.GetDataForToday).Methods("GET")
 
 	router.HandleFunc("/sessions", database.ReturnOptions).Methods("OPTIONS")

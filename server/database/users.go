@@ -3,7 +3,9 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/pascaldekloe/jwt"
 	"github.com/warneki/spaced/server/auth"
 	"github.com/warneki/spaced/server/config"
 	"go.mongodb.org/mongo-driver/bson"
@@ -114,37 +116,84 @@ func insertNewUser(user User) (User, error) {
 func VerifyUserWithToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	user, _, err := verifyRequest(r, w)
+	if err {
+		return
+	}
+	json.NewEncoder(w).Encode(user)
+}
+
+func verifyRequest(r *http.Request, w http.ResponseWriter) (User, jwt.Claims, bool) {
 	token := r.Header.Get("Authorization")
 	splitToken := strings.Split(token, "Bearer ")
 	if len(splitToken) == 1 {
 		json.NewEncoder(w).Encode(map[string]string{"error": "bad authorisation header"})
-		return
+		return User{}, jwt.Claims{}, true
 	}
 	token = splitToken[1]
 
 	if token == "" || len(token) > maxTokenLength {
 		json.NewEncoder(w).Encode(map[string]string{"error": "bad_token"})
 	}
-	user, err := getUserWithToken(token)
+	user, claims, err := getUserWithToken(token)
 
 	if err != nil {
+		fmt.Println(err.Error())
 		json.NewEncoder(w).Encode(map[string]string{"error": "could not verify"})
-		return
+		return User{}, jwt.Claims{}, true
 	}
-	json.NewEncoder(w).Encode(user)
+	return user, claims, false
 }
 
-func getUserWithToken(token string) (User, error) {
+func getUserWithToken(token string) (User, jwt.Claims, error) {
 	claims, err := auth.VerifyJwt(token)
 	if err != nil {
-		return User{}, err
+		return User{}, claims, err
 	}
 	var user User
 	err = Users.FindOne(context.Background(), bson.M{
 		"username": claims.Subject,
 	}).Decode(&user)
-	if err != nil {
-		return User{}, err
+
+	if err == nil {
+		for _, val := range user.Clients {
+			if val == claims.Set["client"] {
+				return user, claims, nil
+			}
+		}
+		return User{}, claims, errors.New("claimed client not found")
 	}
-	return user, nil
+	return User{}, claims, err
+}
+
+func LogoutUserWithToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	user, claims, unauthorised := verifyRequest(r, w)
+	if unauthorised {
+		return
+	}
+
+	var clients []string
+	for i, val := range user.Clients {
+		if val == claims.Set["client"] {
+			clients = append(user.Clients[:i], user.Clients[i+1:]...)
+			break
+		}
+	}
+
+	_, err := Users.UpdateOne(
+		context.Background(),
+		bson.M{
+			"username": user.Username,
+		},
+		bson.M{"$set": bson.M{"clients": clients}},
+	)
+
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "could not logout"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(user)
 }
