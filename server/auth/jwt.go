@@ -30,3 +30,19 @@ func SignAndSerializeJWT(claims jwt.Claims) (string, error) {
 	return string(token), nil
 }
 
+func VerifyJwt(token string) (jwt.Claims, error) {
+	claims, err := jwt.HMACCheck([]byte(token), []byte(config.Key))
+	if err != nil {
+		return jwt.Claims{}, err
+	}
+	notExpired := claims.Valid(time.Now())
+	correctIssuer := claims.Issuer == config.JwtIssuer
+	correctClient := claims.Set["client"] == "web"
+
+	if notExpired && correctIssuer && correctClient {
+		return *claims, nil
+	}
+	errMsg := fmt.Sprintf("Expired: %t; Bad issuer :%t; Bad client :%t", !notExpired, !correctIssuer, !correctClient)
+	fmt.Println(errMsg + " for claims " + string(claims.Raw))
+	return *claims, errors.New(errMsg)
+}
