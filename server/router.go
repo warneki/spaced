@@ -1,28 +1,28 @@
 package main
 
 import (
-    "github.com/gorilla/mux"
-    "github.com/warneki/spaced/server/database"
-    "net/http"
+	"github.com/gorilla/mux"
+	"github.com/warneki/spaced/server/database"
+	"net/http"
 )
 
 const (
-    STATIC_DIR = "./server/public/"
+	STATIC_DIR = "./server/public/"
 )
 
 func Router() *mux.Router {
 
-    router := mux.NewRouter()
+	router := mux.NewRouter()
 
-    router.HandleFunc("/api/register", database.RegisterUser).Methods("POST", "OPTIONS")
-    router.HandleFunc("/api/verify", database.VerifyUserWithToken).Methods("POST")
+	router.HandleFunc("/api/register", database.RegisterUser).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/verify", database.VerifyUserWithToken).Methods("POST")
 
-    router.HandleFunc("/api/today", database.GetDataForToday).Methods("GET")
+	router.HandleFunc("/api/today", database.GetDataForToday).Methods("GET")
 
-    router.HandleFunc("/sessions", database.ReturnOptions).Methods("OPTIONS")
-    router.HandleFunc("/sessions", database.AddNewSession).Methods("POST")
+	router.HandleFunc("/sessions", database.ReturnOptions).Methods("OPTIONS")
+	router.HandleFunc("/sessions", database.AddNewSession).Methods("POST")
 
-    router.PathPrefix("/").Handler(http.FileServer(http.Dir(STATIC_DIR)))
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir(STATIC_DIR)))
 
-    return router
+	return router
 }
