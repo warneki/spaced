@@ -6,6 +6,7 @@ import (
     "fmt"
     "github.com/warneki/spaced/server/auth"
     "github.com/warneki/spaced/server/config"
+    "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
     "golang.org/x/crypto/bcrypt"
@@ -21,7 +22,7 @@ type User struct {
     Username    string              `bson:"username" json:"username"`
     DateCreated time.Time           `bson:"date_created" json:"date_created"`
     Hash        []byte              `bson:"hash" json:"-"`
-    Sessions    []string            `bson:"sessions" json:"-"`
+    Clients    []string            `bson:"clients" json:"-"`
 }
 
 type registeringUser struct {
@@ -33,6 +34,8 @@ type registeringResult struct {
     User User `json:"user"`
     Token string `json:"token"`
 }
+
+const maxTokenLength = 500
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", config.OriginUrl)
@@ -72,7 +75,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         return
     }
     user.Hash = hash
-    user.Sessions = []string{"web"}
+    user.Clients = []string{"web"}
 
     result, err := insertNewUser(user)
     if err != nil {
@@ -84,12 +87,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    token := auth.GenerateJWT(user.Username, user.Sessions)
-    serializedToken := auth.SignAndSerializeJWT(token)
+    claims := auth.GenerateJWT(user.Username, user.Clients[0])
+    token, _ := auth.SignAndSerializeJWT(claims)
 
     _ = json.NewEncoder(w).Encode(registeringResult{
         User:  result,
-        Token: serializedToken,
+        Token: token,
     })
 }
 
@@ -108,3 +111,4 @@ func insertNewUser(user User) (User, error) {
 
     return user, nil
 }
+

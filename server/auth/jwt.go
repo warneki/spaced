@@ -1,30 +1,32 @@
 package auth
 
 import (
-	"github.com/SermoDigital/jose/crypto"
-	"github.com/SermoDigital/jose/jws"
-	"github.com/SermoDigital/jose/jwt"
+	"errors"
+	"fmt"
+	"github.com/pascaldekloe/jwt"
 	"github.com/warneki/spaced/server/config"
 	"time"
 )
 
-func GenerateJWT(username string, aud []string) jwt.JWT {
-	expires := time.Now().Add(time.Duration(24) * time.Hour)
-	claims := jws.Claims{
-		"exp": expires,
-		"iat": time.Now(),
-		"sub": username,
-		"aud": aud,
-		"iss": config.JWTIssuer,
+func GenerateJWT(username string, client string) jwt.Claims {
+	var claims jwt.Claims
+	claims.Subject = username
+	claims.Issuer = config.JwtIssuer
+	claims.Issued = jwt.NewNumericTime(time.Now())
+	claims.Expires = jwt.NewNumericTime(time.Now().AddDate(0, 0, 1))
+	claims.Set = map[string]interface{}{
+		"client": client,
+	}
+	return claims
+}
+
+func SignAndSerializeJWT(claims jwt.Claims) (string, error) {
+	token, err := claims.HMACSign("HS256", []byte(config.Key))
+	if err != nil {
+		fmt.Println(err)
+		return "", err
 	}
 
-	jwt := jws.NewJWT(claims, crypto.SigningMethodRS256)
-	return jwt
+	return string(token), nil
 }
 
-func SignAndSerializeJWT(j jwt.JWT) string {
-	rsaPrivate, _ := crypto.ParseRSAPrivateKeyFromPEM([]byte(config.PrKey))
-	b, _ := j.Serialize(rsaPrivate)
-
-	return string(b)
-}
