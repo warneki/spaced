@@ -65,9 +65,9 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	var user User
 
-	userCreated := time.Now()
-	user.DateCreated = userCreated
+	user.DateCreated = time.Now()
 	// TODO: add checks
+	// do not allow whitespaces and special chars except dashes and _
 	user.Username = strings.ToLower(userData.Username)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(userData.Password), config.HashCost)
@@ -76,7 +76,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user.Hash = hash
-	user.Clients = []string{"web"}
+
+	// client is web TODO: add android
+	claims, clientName := auth.GenerateJWT(user.Username, "web")
+	token, _ := auth.SignAndSerializeJWT(claims)
+
+	user.Clients = []string{clientName}
 
 	result, err := insertNewUser(user)
 	if err != nil {
@@ -87,9 +92,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not register user, please try again", 500)
 		return
 	}
-
-	claims := auth.GenerateJWT(user.Username, user.Clients[0])
-	token, _ := auth.SignAndSerializeJWT(claims)
 
 	_ = json.NewEncoder(w).Encode(registeringResult{
 		User:  result,
@@ -121,6 +123,63 @@ func VerifyUserWithToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(user)
+}
+
+func LoginUser(w http.ResponseWriter, r *http.Request) {
+	// todo: add login by email
+	w.Header().Set("Content-Type", "application/json")
+
+	// get login data from request
+	var userData registeringUser
+	err := json.NewDecoder(r.Body).Decode(&userData)
+	if err != nil {
+		panic(err)
+	}
+	var user User
+	user.Username = strings.ToLower(userData.Username)
+
+	// check that queried user exists
+	err = Users.FindOne(context.Background(), bson.M{
+		"username": user.Username,
+	}).Decode(&user)
+
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "username or password are incorrect"})
+		return
+	}
+
+	// check password
+	err = bcrypt.CompareHashAndPassword(user.Hash, []byte(userData.Password))
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "username or password are incorrect"})
+		return
+	}
+
+	// generate token
+	claims, clientName := auth.GenerateJWT(user.Username, "web")
+	token, _ := auth.SignAndSerializeJWT(claims)
+
+	// update client name in db
+	user.Clients = append(user.Clients, clientName)
+	_, err = Users.UpdateOne(
+		context.Background(),
+		bson.M{
+			"username": user.Username,
+		},
+		bson.M{"$set": bson.M{"clients": user.Clients}},
+	)
+
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "could not login, please try again"})
+		return
+	}
+
+
+
+	_ = json.NewEncoder(w).Encode(registeringResult{
+		User:  user,
+		Token: token,
+	})
 }
 
 func verifyRequest(r *http.Request, w http.ResponseWriter) (User, jwt.Claims, bool) {
@@ -191,7 +250,7 @@ func LogoutUserWithToken(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "could not logout"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "could not logout, please try again"})
 		return
 	}
 

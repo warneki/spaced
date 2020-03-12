@@ -5,19 +5,25 @@ import (
 	"fmt"
 	"github.com/pascaldekloe/jwt"
 	"github.com/warneki/spaced/server/config"
+	"strconv"
 	"time"
 )
 
-func GenerateJWT(username string, client string) jwt.Claims {
+func GenerateJWT(username string, client string) (jwt.Claims, string) {
 	var claims jwt.Claims
 	claims.Subject = username
 	claims.Issuer = config.JwtIssuer
-	claims.Issued = jwt.NewNumericTime(time.Now())
-	claims.Expires = jwt.NewNumericTime(time.Now().AddDate(0, 0, 1))
+	now := time.Now().Round(time.Second)
+	claims.Issued = jwt.NewNumericTime(now)
+	claims.Expires = jwt.NewNumericTime(now.AddDate(0, 0, 1))
+
+	// clientName identifies the client from which user connects plus issued and expire dates
+	clientName := client + "_" + strconv.FormatInt(claims.Issued.Time().Unix(),
+		10) + "_" + strconv.FormatInt(claims.Expires.Time().Unix(), 10)
 	claims.Set = map[string]interface{}{
-		"client": client,
+		"client": clientName,
 	}
-	return claims
+	return claims, clientName
 }
 
 func SignAndSerializeJWT(claims jwt.Claims) (string, error) {
@@ -37,12 +43,11 @@ func VerifyJwt(token string) (jwt.Claims, error) {
 	}
 	notExpired := claims.Valid(time.Now())
 	correctIssuer := claims.Issuer == config.JwtIssuer
-	correctClient := claims.Set["client"] == "web"
 
-	if notExpired && correctIssuer && correctClient {
+	if notExpired && correctIssuer {
 		return *claims, nil
 	}
-	errMsg := fmt.Sprintf("Expired: %t; Bad issuer :%t; Bad client :%t", !notExpired, !correctIssuer, !correctClient)
+	errMsg := fmt.Sprintf("Expired: %t; Bad issuer :%t", !notExpired, !correctIssuer)
 	fmt.Println(errMsg + " for claims " + string(claims.Raw))
 	return *claims, errors.New(errMsg)
 }
