@@ -32,32 +32,39 @@ func init() {
 
 	fmt.Println("Connected to MongoDB!")
 
-	Projects = client.Database("test").Collection("projects")
-	Sessions = client.Database("test").Collection("sessions")
-	Repeats = client.Database("test").Collection("repeats")
-	Users = client.Database("test").Collection("users")
+	Projects = client.Database(config.DbName).Collection("projects")
+	Sessions = client.Database(config.DbName).Collection("sessions")
+	Repeats = client.Database(config.DbName).Collection("repeats")
+	Users = client.Database(config.DbName).Collection("users")
 
 }
 
 type dataForToday struct {
-	Sessions []primitive.M `json:"sessions"`
+	Sessions []Session     `json:"sessions"`
 	Projects []primitive.M `json:"projects"`
-	Repeats  []primitive.M `json:"repeats"`
+	Repeats  []Repeat      `json:"repeats"`
+	User     User          `json:"user"`
 }
 
 func GetDataForToday(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Context-Type", "application/x-www-form-urlencoded")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	sessions := make(chan []primitive.M, 1)
+	sessions := make(chan []Session, 1)
 	projects := make(chan []primitive.M, 1)
-	repeats := make(chan []primitive.M, 1)
+	repeats := make(chan []Repeat, 1)
 
-	go getAllSession(sessions)
-	go getAllProject(projects)
-	go getAllRepeat(repeats)
+	user, _, unauthorised := verifyRequest(r, w)
+	if unauthorised {
+		return
+	}
+
+	go getAllSession(sessions, user)
+	go getAllProject(projects, user)
+	go getAllRepeat(repeats, user)
 
 	payload := dataForToday{}
+	payload.User = user
 
 	// TODO: bettwer way to merge results?
 	payload.Sessions = <-sessions

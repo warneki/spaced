@@ -16,15 +16,37 @@ type Repeat struct {
 	Days      int                 `bson:"days" json:"days"`
 	SessionID *primitive.ObjectID `bson:"session_id" json:"session_id"`
 	RepeatOn  time.Time           `bson:"repeat_on" json:"repeat_on"`
+	Username  string              `bson:"username" json:"-"`
 }
 
-func getAllRepeat(c chan []primitive.M) {
-	cur, err := Repeats.Find(context.Background(), bson.D{{}})
-	c <- queryForResult(err, cur)
+func getAllRepeat(c chan []Repeat, user User) {
+	cur, err := Repeats.Find(context.Background(), bson.M{
+		"username": user.Username,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	var repeats []Repeat
+	for cur.Next(context.Background()) {
+		var repeat Repeat
+		e := cur.Decode(&repeat)
+		if e != nil {
+			log.Fatal(e)
+		}
+		repeats = append(repeats, repeat)
+	}
+
+	if err := cur.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	_ = cur.Close(context.Background())
+
+	c <- repeats
 	close(c)
 }
 
-func generateRepeatsForSession(sessionId *primitive.ObjectID, sessionCreated time.Time) [7]Repeat {
+func generateRepeatsForSession(session Session) [7]Repeat {
 	// Create repeats
 	var repeats = [7]Repeat{}
 
@@ -32,8 +54,9 @@ func generateRepeatsForSession(sessionId *primitive.ObjectID, sessionCreated tim
 		repeats[i] = Repeat{
 			Done:      false,
 			Days:      days,
-			SessionID: sessionId,
-			RepeatOn:  sessionCreated.AddDate(0, 0, days),
+			SessionID: session.ID,
+			RepeatOn:  session.Date.AddDate(0, 0, days),
+			Username:  session.Username,
 		}
 	}
 

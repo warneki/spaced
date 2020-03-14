@@ -51,7 +51,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, reserved := range config.ListOfReservedUsernames {
-		// TODO: also check here for existing usernames
+		// TODO: also check here for existing usernames, username length cap at 25 chars
 		if reserved == userData.Password {
 			http.Error(w, "This username is not available to register", 409)
 			return
@@ -59,7 +59,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(userData.Password) < 8 || len(userData.Password) > 256 {
-		http.Error(w, "Your password is too short or too long, minimum length is 8, maximum is 256", 422)
+		http.Error(w, "The password has incorrect length: minimum is 8, maximum is 256", 422)
 		return
 	}
 
@@ -173,8 +173,6 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "could not login, please try again"})
 		return
 	}
-
-
 
 	_ = json.NewEncoder(w).Encode(registeringResult{
 		User:  user,

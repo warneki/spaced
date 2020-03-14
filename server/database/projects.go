@@ -6,7 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
 	"time"
 )
 
@@ -17,20 +16,26 @@ type Project struct {
 	Tags          []string              `bson:"tags" json:"tags"`
 	NotesLocation string                `bson:"notes_location" json:"notes_location"`
 	StudySessions []*primitive.ObjectID `bson:"study_sessions" json:"study_sessions"`
+	Username      string                `bson:"username" json:"-"`
 }
 
-func getAllProject(c chan []primitive.M) {
-	cur, err := Projects.Find(context.Background(), bson.D{{}})
+func getAllProject(c chan []primitive.M, user User) {
+	cur, err := Projects.Find(context.Background(), bson.M{
+		"username": user.Username,
+	})
 	c <- queryForResult(err, cur)
 	close(c)
 }
 
-func updateProjectWithSession(sessionId *primitive.ObjectID, projectName string) Project {
+func updateProjectWithSession(session Session) Project {
 	// get the project
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
-	filter := bson.M{"name": projectName}
-	update := bson.D{{"$push", bson.D{{"study_sessions", sessionId}}}}
+	filter := bson.M{
+		"name":     session.Project,
+		"username": session.Username,
+	}
+	update := bson.D{{"$push", bson.D{{"study_sessions", session.ID}}}}
 
 	var project = Project{}
 
@@ -44,24 +49,4 @@ func updateProjectWithSession(sessionId *primitive.ObjectID, projectName string)
 	}
 
 	return project
-}
-
-func decoder(err error, cur *mongo.Cursor) []primitive.M {
-
-	var results []primitive.M
-	for cur.Next(context.Background()) {
-		var result bson.M
-		e := cur.Decode(&result)
-		if e != nil {
-			log.Fatal(e)
-		}
-		results = append(results, result)
-	}
-
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	cur.Close(context.Background())
-	return results
 }
